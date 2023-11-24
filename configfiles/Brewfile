@@ -1,0 +1,37 @@
+cask_args appdir: "/Applications"
+
+# Tools
+brew "bash-completion"
+
+#sysadmin tooling
+brew "htop"
+brew "wget"
+brew "watch"
+brew "tree"
+brew "nmap"
+
+
+# Apps
+cask "dropbox"
+cask "google-chrome"
+cask "little-snitch"
+cask "iterm2"
+cask "caffeine"
+cask "rectangle"
+cask "blender"
+cask "google-chat"
+cask "vlc"
+cask "the-unarchiver"
+cask "adobe-creative-cloud"
+cask "adobe-acrobat-pro"
+cask "stats"
+cask "teamviewer"
+cask "microsoft-office"
+cask "stats"
+
+#cask "apppolice"
+#cask "postman"
+#cask "sketch"
+#cask "sourcetree"
+#cask "spotify"
+#cask "visual-studio-code"
