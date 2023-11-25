@@ -3,7 +3,7 @@
 consoleuser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }' ) 
 
 #INSTALLING HOMEBREW
-./autobrew.sh
+sudo ./autobrew.sh
 
 echo "To accommodate for Apple Silicon change to the pathing"
 echo 'export PATH="/opt/homebrew/bin:$PATH"' >> /Users/"$(id -un)"/.zshrc 
@@ -22,8 +22,9 @@ sudo scutil --set HostName $newhostname
 sudo scutil --set ComputerName $newhostname
 echo "New hostname set to $newhostname"
 
-
-echo "Default dock layout configured"
+echo "Installing oh-my-zsh in current user's shell"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+echo ""
 
 tools=(
     bash-completion
@@ -73,10 +74,6 @@ echo "Set up default dock layout"
 cp -f "./configfiles/com.apple.dock.plist" "/Users/$consoleuser/Library/Preferences/"
 defaults read "/Users/$consoleuser/Library/Preferences/com.apple.dock.plist"
 killall Dock
-echo ""
-
-echo "Installing oh-my-zsh in current user's shell"
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 echo ""
 
 echo "Enabled touch id for sudo"
