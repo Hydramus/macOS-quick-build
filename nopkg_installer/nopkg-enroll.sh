@@ -44,24 +44,47 @@ install_rosetta() {
 }
 
 install_homebrew() {
-  echo "Installing Homebrew..." | tee -a "$LOGFILE"
-  if [[ ! -e "$HOMEBREW_PREFIX/bin/brew" ]]; then
-    mkdir -p "$HOMEBREW_PREFIX/Homebrew"
-    curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C "$HOMEBREW_PREFIX/Homebrew"
-    ln -s "$HOMEBREW_PREFIX/Homebrew/bin/brew" "$HOMEBREW_PREFIX/bin/brew"
+  echo "Installing Homebrew (Apple Silicon only)..." | tee -a "$LOGFILE"
+  HOMEBREW_PREFIX="/opt/homebrew"
 
-    # Create and set permissions for multi-user Homebrew directories
-    for dir in Cellar Caskroom Frameworks bin include lib opt etc sbin share var man; do
-      mkdir -p "$HOMEBREW_PREFIX/$dir"
-      chown -R "$consoleuser":_developer "$HOMEBREW_PREFIX/$dir"
-      chmod -R g+rwx "$HOMEBREW_PREFIX/$dir"
-    done
-    mkdir -p /Library/Caches/Homebrew
-    chmod g+rwx /Library/Caches/Homebrew
-    chown "$consoleuser":_developer /Library/Caches/Homebrew
+  if [[ -e "${HOMEBREW_PREFIX}/bin/brew" ]]; then
+    echo "Homebrew already installed, updating..." | tee -a "$LOGFILE"
+    su -l "$consoleuser" -c "${HOMEBREW_PREFIX}/bin/brew update"
+    return
   fi
-  echo "Updating Homebrew..." | tee -a "$LOGFILE"
-  su -l "$consoleuser" -c "$HOMEBREW_PREFIX/bin/brew update"
+
+  # Create core directories
+  mkdir -p "${HOMEBREW_PREFIX}/Homebrew"
+  curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C "${HOMEBREW_PREFIX}/Homebrew"
+
+  # Set up subdirectories & permissions
+  for dir in Cellar Caskroom Frameworks bin include lib opt etc sbin share var man; do
+    mkdir -p "${HOMEBREW_PREFIX}/$dir"
+    chown -R "$consoleuser":_developer "${HOMEBREW_PREFIX}/$dir"
+    chmod -R g+rwx "${HOMEBREW_PREFIX}/$dir"
+  done
+  mkdir -p "${HOMEBREW_PREFIX}/share/zsh/site-functions"
+  chmod 755 "${HOMEBREW_PREFIX}/share/zsh" "${HOMEBREW_PREFIX}/share/zsh/site-functions"
+
+  # System cache
+  mkdir -p /Library/Caches/Homebrew
+  chmod g+rwx /Library/Caches/Homebrew
+  chown "$consoleuser":_developer /Library/Caches/Homebrew
+
+  # Symlink brew binary
+  ln -s "${HOMEBREW_PREFIX}/Homebrew/bin/brew" "${HOMEBREW_PREFIX}/bin/brew"
+
+  # Add to /etc/paths.d
+  touch /etc/paths.d/brew
+  echo "${HOMEBREW_PREFIX}/bin" > /etc/paths.d/brew
+
+  # Update shell profile
+  echo 'export PATH="/opt/homebrew/bin:$PATH"' >> "/Users/$consoleuser/.zshrc"
+
+  # Install checksum utility (required for some recipes)
+  su -l "$consoleuser" -c "${HOMEBREW_PREFIX}/bin/brew install md5sha1sum"
+
+  echo "Homebrew installation complete." | tee -a "$LOGFILE"
 }
 
 install_cli_tools() {
