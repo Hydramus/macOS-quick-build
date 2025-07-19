@@ -2,6 +2,10 @@
 
 consoleuser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }' ) 
 
+echo "Installing oh-my-zsh in current user's shell"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+echo ""
+
 #INSTALLING HOMEBREW
 sudo ./autobrew.sh
 
@@ -21,10 +25,6 @@ newhostname=HL-$(system_profiler SPHardwareDataType | awk '/Serial/ {print $4}')
 sudo scutil --set HostName $newhostname
 sudo scutil --set ComputerName $newhostname
 echo "New hostname set to $newhostname"
-
-echo "Installing oh-my-zsh in current user's shell"
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-echo ""
 
 tools=(
     bash-completion
@@ -49,18 +49,18 @@ done
 apps=(
     dropbox
     google-chrome
-    little-snitch
+    little-snitch@5
     iterm2
     caffeine
     rectangle
-    blender
+    #blender
     vlc
     the-unarchiver
-    adobe-creative-cloud
-    adobe-acrobat-pro
+    #adobe-creative-cloud
+    #adobe-acrobat-pro
     stats
     teamviewer
-    microsoft-office              # This is the unofficial cask for Microsoft Office
+    #microsoft-office              # This is the unofficial cask for Microsoft Office
     stats
 )
 
