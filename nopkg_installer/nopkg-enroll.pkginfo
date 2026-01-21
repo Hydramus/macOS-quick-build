@@ -5,13 +5,13 @@
 	<key>_metadata</key>
 	<dict>
 		<key>created_by</key>
-		<string>josh.sung</string>
+		<string>hydramus</string>
 		<key>creation_date</key>
-		<date>2025-07-19T15:07:20Z</date>
+		<date>2026-01-21T17:12:16Z</date>
 		<key>munki_version</key>
 		<string>6.6.5.4711</string>
 		<key>os_version</key>
-		<string>15.5</string>
+		<string>26.2</string>
 	</dict>
 	<key>autoremove</key>
 	<false/>
@@ -23,11 +23,15 @@
 	<string>Auto-Enroll via SimpleMDM</string>
 	<key>installcheck_script</key>
 	<string>#!/bin/bash
-# Detect if Homebrew or SimpleMDM bootstrap hasn’t been applied
-if [ ! -x /opt/homebrew/bin/brew ] || [ ! -f /usr/local/simplemdm/enroll_marker ]; then
-  exit 0  # Needs install
+# Check if enrollment has already been completed (first run only)
+MARKER_FILE="/usr/local/simplemdm/enroll_marker"
+
+if [ -f "$MARKER_FILE" ]; then
+  # Already enrolled - no need to install
+  exit 1
 else
-  exit 1  # Up to date
+  # Not enrolled yet - needs install
+  exit 0
 fi
 </string>
 	<key>installer_type</key>
@@ -38,196 +42,206 @@ fi
 	<string>nopkg-enroll</string>
 	<key>postinstall_script</key>
 	<string>#!/bin/bash
-# Your full enroll script here - nopkg-enroll.sh   
-
 
 # macOS Automated Enrollment Script for SimpleMDM (NoPkg)
 # Author: hydramus
-# Purpose: Automate setup of macOS device post-enrollment
-# Version: 1.2
+# Purpose: Automate setup of macOS device post-enrollment (first login only)
+# Version: 2.0
 
 set -euo pipefail
 
 # ===== VARIABLES =====
-consoleuser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
+consoleuser=$(scutil &lt;&lt;&lt; "show State:/Users/ConsoleUser" | awk '/Name :/ &amp;&amp; ! /loginwindow/ { print $3 }')
 UNAME_MACHINE="$(uname -m)"
 HOMEBREW_PREFIX="/usr/local"
 LOGFILE="/var/log/macos_enrollment.log"
+MARKER_FILE="/usr/local/simplemdm/enroll_marker"
+STATUS_FILE="/tmp/enrollment_status.txt"
+REPO_URL="https://github.com/Hydramus/macOS-quick-build/archive/refs/heads/main.zip"
+WORK_DIR="/tmp/macos-setup-$$"
 
 if [[ "$UNAME_MACHINE" == "arm64" ]]; then
   HOMEBREW_PREFIX="/opt/homebrew"
 fi
 
+# ===== LOGGING FUNCTION =====
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOGFILE"
+}
+
+log_status() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOGFILE"
+  echo "$*" &gt; "$STATUS_FILE"
+}
+
 # ===== FUNCTIONS =====
+check_first_run() {
+  if [ -f "$MARKER_FILE" ]; then
+    log "Enrollment already completed. Marker file exists at $MARKER_FILE"
+    exit 0
+  fi
+  
+  log "First run detected. Starting enrollment process..."
+  mkdir -p "$(dirname "$MARKER_FILE")"
+}
+
 wait_for_network() {
-  local max_wait=10 count=1
-  while [[ $(ifconfig -a inet 2>/dev/null | sed -n -e '/127.0.0.1/d' -e '/0.0.0.0/d' -e '/inet/p' | wc -l) -lt 1 ]]; do
+  local max_wait=20 count=1
+  log_status "Waiting for network connection..."
+  
+  while [[ $(ifconfig -a inet 2&gt;/dev/null | sed -n -e '/127.0.0.1/d' -e '/0.0.0.0/d' -e '/inet/p' | wc -l) -lt 1 ]]; do
     if [[ $count -gt $max_wait ]]; then
-      echo "[ERROR] No network detected." | tee -a "$LOGFILE"
+      log "ERROR: No network detected after ${max_wait} attempts."
       exit 1
     fi
-    echo "Waiting for network... ($count)" | tee -a "$LOGFILE"
+    log "Waiting for network... attempt $count/$max_wait"
     sleep 5
     (( count++ ))
   done
+  
+  log "Network connection established."
 }
 
-install_rosetta() {
-  if [[ "$UNAME_MACHINE" == "arm64" ]]; then
-    if ! pgrep oahd >/dev/null 2>&1; then
-      echo "Installing Rosetta 2..." | tee -a "$LOGFILE"
-      wait_for_network
-      /usr/sbin/softwareupdate --install-rosetta --agree-to-license
-    else
-      echo "Rosetta 2 already installed." | tee -a "$LOGFILE"
-    fi
+install_oh_my_zsh() {
+  log_status "Installing oh-my-zsh..."
+  
+  if [ -d "/Users/$consoleuser/.oh-my-zsh" ]; then
+    log "oh-my-zsh already installed. Skipping."
+    return 0
+  fi
+  
+  log "Downloading and installing oh-my-zsh unattended..."
+  su -l "$consoleuser" -c 'RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"' 2&gt;&amp;1 | tee -a "$LOGFILE"
+  
+  if [ -d "/Users/$consoleuser/.oh-my-zsh" ]; then
+    log "oh-my-zsh installation completed successfully."
+  else
+    log "WARNING: oh-my-zsh installation may have failed."
   fi
 }
 
-install_homebrew() {
-  echo "Installing Homebrew (Apple Silicon only)..." | tee -a "$LOGFILE"
-  HOMEBREW_PREFIX="/opt/homebrew"
-
-  if [[ -e "${HOMEBREW_PREFIX}/bin/brew" ]]; then
-    echo "Homebrew already installed, updating..." | tee -a "$LOGFILE"
-    su -l "$consoleuser" -c "${HOMEBREW_PREFIX}/bin/brew update"
-    return
+download_repo() {
+  log_status "Downloading macOS setup repository..."
+  
+  mkdir -p "$WORK_DIR"
+  cd "$WORK_DIR"
+  
+  log "Downloading from: $REPO_URL"
+  
+  if curl -L "$REPO_URL" -o repo.zip 2&gt;&amp;1 | tee -a "$LOGFILE"; then
+    log "Repository downloaded successfully."
+  else
+    log "ERROR: Failed to download repository from $REPO_URL"
+    exit 1
   fi
-
-  # Create core directories
-  mkdir -p "${HOMEBREW_PREFIX}/Homebrew"
-  curl -L https://github.com/Homebrew/brew/tarball/master | tar xz --strip 1 -C "${HOMEBREW_PREFIX}/Homebrew"
-
-  # Set up subdirectories & permissions
-  for dir in Cellar Caskroom Frameworks bin include lib opt etc sbin share var man; do
-    mkdir -p "${HOMEBREW_PREFIX}/$dir"
-    chown -R "$consoleuser":_developer "${HOMEBREW_PREFIX}/$dir"
-    chmod -R g+rwx "${HOMEBREW_PREFIX}/$dir"
-  done
-  mkdir -p "${HOMEBREW_PREFIX}/share/zsh/site-functions"
-  chmod 755 "${HOMEBREW_PREFIX}/share/zsh" "${HOMEBREW_PREFIX}/share/zsh/site-functions"
-
-  # System cache
-  mkdir -p /Library/Caches/Homebrew
-  chmod g+rwx /Library/Caches/Homebrew
-  chown "$consoleuser":_developer /Library/Caches/Homebrew
-
-  # Symlink brew binary
-  ln -s "${HOMEBREW_PREFIX}/Homebrew/bin/brew" "${HOMEBREW_PREFIX}/bin/brew"
-
-  # Add to /etc/paths.d
-  touch /etc/paths.d/brew
-  echo "${HOMEBREW_PREFIX}/bin" > /etc/paths.d/brew
-
-  # Update shell profile
-  echo 'export PATH="/opt/homebrew/bin:$PATH"' >> "/Users/$consoleuser/.zshrc"
-
-  # Install checksum utility (required for some recipes)
-  su -l "$consoleuser" -c "${HOMEBREW_PREFIX}/bin/brew install md5sha1sum"
-
-  echo "Homebrew installation complete." | tee -a "$LOGFILE"
+  
+  log "Extracting repository..."
+  unzip -q repo.zip 2&gt;&amp;1 | tee -a "$LOGFILE"
+  
+  # Find the extracted directory (GitHub creates a folder like macOS-quick-build-main)
+  REPO_DIR=$(find "$WORK_DIR" -maxdepth 1 -type d -name "macOS-quick-build-*" | head -n 1)
+  
+  if [ -z "$REPO_DIR" ]; then
+    log "ERROR: Could not find extracted repository directory."
+    exit 1
+  fi
+  
+  log "Repository extracted to: $REPO_DIR"
+  cd "$REPO_DIR"
 }
 
-install_cli_tools() {
-  echo "Installing Xcode CLI tools..." | tee -a "$LOGFILE"
-  if ! xcode-select -p >/dev/null 2>&1; then
-    touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    softwareupdate -i "$(softwareupdate -l | grep -B 1 -E 'Command Line (Developer|Tools)' | awk -F"*" '/^ +\\*/ {print $2}' | sed 's/^ *//' | tail -n1)"
-    rm /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
-    xcode-select --switch /Library/Developer/CommandLineTools
+run_main_setup() {
+  log_status "Running main setup script..."
+  
+  if [ ! -f "./macOSMachineSetup.sh" ]; then
+    log "ERROR: macOSMachineSetup.sh not found in repository."
+    exit 1
+  fi
+  
+  # Make scripts executable
+  chmod +x ./macOSMachineSetup.sh
+  chmod +x ./autobrew.sh 2&gt;/dev/null || true
+  chmod +x ./rosetta-2-install.sh 2&gt;/dev/null || true
+  
+  log "Executing macOSMachineSetup.sh..."
+  log "================================================"
+  
+  # Run the main setup script with logging
+  if ./macOSMachineSetup.sh 2&gt;&amp;1 | tee -a "$LOGFILE"; then
+    log "================================================"
+    log "macOSMachineSetup.sh completed successfully."
+  else
+    log "================================================"
+    log "WARNING: macOSMachineSetup.sh completed with errors. Check log for details."
   fi
 }
 
-install_brew_packages() {
-  local tools=(
-    bash-completion
-    htop
-    wget
-    watch
-    tree
-    nmap
-    curl
-    tmux
-    unzip
-    vim
-  )
-
-  local apps=(
-    dropbox
-    google-chrome
-    little-snitch@5
-    iterm2
-    caffeine
-    rectangle
-    vlc
-    the-unarchiver
-    adobe-creative-cloud
-    stats
-    teamviewer
-  )
-
-  for tool in "${tools[@]}"; do
-    echo "Installing $tool..." | tee -a "$LOGFILE"
-    brew install "$tool"
-  done
-
-  for app in "${apps[@]}"; do
-    echo "Installing $app..." | tee -a "$LOGFILE"
-    brew install --cask "$app"
-  done
+create_marker() {
+  log "Creating enrollment completion marker..."
+  echo "Enrollment completed at $(date)" &gt; "$MARKER_FILE"
+  log "Marker file created at: $MARKER_FILE"
 }
 
-apply_configs() {
-  #echo "Applying dock layout..." | tee -a "$LOGFILE"
-  #cp -f "./com.apple.dock.plist" "/Users/$consoleuser/Library/Preferences/"
-  #killall Dock || true
-
-  echo "Enabling Touch ID for sudo..." | tee -a "$LOGFILE"
-  if ! grep -q "pam_tid.so" /etc/pam.d/sudo; then
-    sed -i '' '1s;^;auth       sufficient     pam_tid.so\\n;' /etc/pam.d/sudo
-  fi
-
-  echo "Setting hostname to serial number..." | tee -a "$LOGFILE"
-  newhostname=HL-$(system_profiler SPHardwareDataType | awk '/Serial/ {print $4}')
-  sudo scutil --set HostName "$newhostname"
-  sudo scutil --set ComputerName "$newhostname"
-
-  echo "Enabling SSH remote login..." | tee -a "$LOGFILE"
-  sudo systemsetup -setremotelogin on
+cleanup() {
+  log "Cleaning up temporary files..."
+  rm -rf "$WORK_DIR" 2&gt;/dev/null || true
+  rm -f "$STATUS_FILE" 2&gt;/dev/null || true
+  log "Cleanup completed."
 }
 
 show_success_popup() {
-  osascript <<EOD
-  tell application "System Events"
-    display dialog "✅ macOS enrollment script completed successfully!\\n\\n📄 Log file: $LOGFILE" buttons {"Close"} default button 1 with title "Enrollment Complete"
+  log "Displaying success notification to user..."
+  
+  su -l "$consoleuser" -c "osascript &lt;&lt;EOD
+  tell application \"System Events\"
+    display dialog \"🎉 Great success with installation!\\n\\nYour Mac has been configured successfully.\\n\\n📄 Log file location:\\n$LOGFILE\\n\\nIf you have any questions, please check in with:\\nit@hollowayli.com\" buttons {\"OK\"} default button 1 with title \"Setup Complete\" with icon note
   end tell
-EOD
-} 
+EOD" 2&gt;&amp;1 | tee -a "$LOGFILE"
+}
 
-# ===== EXECUTION =====
-install_cli_tools
-install_rosetta
-install_homebrew
-install_brew_packages
-apply_configs
+# ===== MAIN EXECUTION =====
+log "========================================"
+log "macOS Enrollment Script Started"
+log "User: $consoleuser"
+log "Architecture: $UNAME_MACHINE"
+log "Homebrew Prefix: $HOMEBREW_PREFIX"
+log "========================================"
 
+# Check if this is the first run
+check_first_run
+
+# Wait for network
+wait_for_network
+
+# Install oh-my-zsh first
+install_oh_my_zsh
+
+# Download repository
+download_repo
+
+# Run main setup script
+run_main_setup
+
+# Create completion marker
+create_marker
+
+# Cleanup temporary files
+cleanup
+
+# Show success notification
 show_success_popup
 
-echo "\nIMPORTANT: Please manually set up Dropbox to back up Desktop and Documents." | tee -a "$LOGFILE"
-echo "macOS enrollment script completed successfully." | tee -a "$LOGFILE"
-
-exit 0
-
-
+log "========================================"
+log "Enrollment completed successfully!"
+log "========================================"
 # Create a marker indicating completion
 mkdir -p /usr/local/simplemdm
 touch /usr/local/simplemdm/enroll_marker
-
 </string>
 	<key>unattended_install</key>
 	<true/>
 	<key>version</key>
-	<string>1.0</string>
+	<string>2.0</string>
 </dict>
 </plist>
 

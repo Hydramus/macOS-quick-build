@@ -1,7 +1,11 @@
 #!/bin/bash
-# Detect if Homebrew or SimpleMDM bootstrap hasn’t been applied
-if [ ! -x /opt/homebrew/bin/brew ] || [ ! -f /usr/local/simplemdm/enroll_marker ]; then
-  exit 0  # Needs install
+# Check if enrollment has already been completed (first run only)
+MARKER_FILE="/usr/local/simplemdm/enroll_marker"
+
+if [ -f "$MARKER_FILE" ]; then
+  # Already enrolled - no need to install
+  exit 1
 else
-  exit 1  # Up to date
+  # Not enrolled yet - needs install
+  exit 0
 fi
