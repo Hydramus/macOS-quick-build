@@ -28,25 +28,31 @@ For manual setup on a new Mac, run the main setup script directly:
 
 3. Run the main setup script:
    ```bash
-   ./macOSMachineSetup.sh
+   sudo ./macOSMachineSetup.sh
    ```
+   
+   **Note**: The script must be run with sudo for system-level operations, but it automatically preserves user context for user-specific installations.
 
 ### What It Does
 
 The main script (`macOSMachineSetup.sh`) automatically:
-- Installs oh-my-zsh (unattended mode)
+- Verifies and installs Xcode Command Line Tools if needed
+- Accepts Xcode license agreement automatically
+- Installs oh-my-zsh (unattended mode, as console user)
 - Installs Homebrew with architecture detection (Apple Silicon/Intel)
 - Installs Rosetta 2 (Apple Silicon only)
-- Installs all packages from `configfiles/Brewfile`
-- Configures hostname to serial number
+- Installs all packages from `configfiles/Brewfile` with live progress output
+- Configures hostname to serial number format
 - Enables SSH remote login
 - Applies dock layout
 - Enables Touch ID for sudo
 - Updates PATH for current shell session
-- Tracks and reports any failures with full error details
+- Tracks and reports any failures with full error details and log file paths
 
 ### Features
 
+- **Sudo-aware**: Runs with root privileges but preserves user context for user files
+- **Real-time feedback**: Live output streaming for all operations (no more waiting blindly)
 - **Architecture-aware**: Automatically detects and configures for Apple Silicon or Intel Macs
 - **Error resilient**: Continues on failures and reports them at the end
 - **Idempotent**: Can be run multiple times safely
@@ -106,11 +112,24 @@ The `nopkg-enroll.sh` script is designed for SimpleMDM's nopkg feature to automa
 
 1. **First Login Detection**: `installcheck.sh` checks for marker file at `/usr/local/simplemdm/enroll_marker`
 2. **Network Wait**: Script waits for network connectivity (max 100 seconds)
-3. **oh-my-zsh Installation**: Installs oh-my-zsh in unattended mode (no shell restart)
-4. **Repository Download**: Downloads latest code from GitHub
-5. **Main Setup**: Executes `macOSMachineSetup.sh` with all improvements
-6. **Completion Marker**: Creates marker file to prevent re-runs
-7. **User Notification**: Displays success dialog with log file location
+3. **Repository Download**: Downloads latest code from GitHub
+4. **Main Setup**: Executes `macOSMachineSetup.sh` with sudo (preserves user context)
+5. **Completion Marker**: Creates marker file to prevent re-runs
+6. **User Notification**: Displays success dialog with log file location
+
+### What Gets Configured
+
+The automated setup includes:
+- Xcode Command Line Tools installation and license acceptance
+- oh-my-zsh installation (unattended, as user)
+- Homebrew installation
+- All Brewfile packages
+- Rosetta 2 (Apple Silicon only)
+- Hostname configuration (serial number-based)
+- SSH remote login
+- Dock layout
+- Touch ID for sudo
+- Complete error tracking with log preservation
 
 ### Log File
 
@@ -183,11 +202,20 @@ Review all scripts before running on production systems.
 
 ### Manual Installation Issues
 
-**Problem**: Homebrew commands not found after installation
-- **Solution**: The script now updates PATH automatically. If still having issues, open a new terminal or run: `export PATH="/opt/homebrew/bin:$PATH"` (Apple Silicon) or `export PATH="/usr/local/bin:$PATH"` (Intel)
+**Problem**: Script requires sudo but I don't have admin rights
+- **Solution**: This script requires administrative privileges to modify system settings. Contact your IT administrator.
 
-**Problem**: Script fails with permission errors
-- **Solution**: Ensure you're running with sudo privileges. The script will prompt when needed.
+**Problem**: Homebrew cask installations prompt for password
+- **Solution**: The script should handle this automatically with temporary sudoers rules. If you still see prompts, ensure you're running with `sudo ./macOSMachineSetup.sh`.
+
+**Problem**: Want to see detailed logs of a failed step
+- **Solution**: Failed operations save logs to `/tmp/tmp.XXXXXXXX`. The script displays the path when a failure occurs. Use `cat /tmp/tmp.XXXXXXXX` to view.
+
+**Problem**: Brew bundle shows no output during installation
+- **Solution**: The latest version includes `--verbose` flag for live feedback. Ensure you're using the updated script.
+
+**Problem**: Script fails with "Xcode license must be accepted"
+- **Solution**: The script now automatically accepts the license. Ensure you're running the latest version with the Xcode license acceptance section.
 
 ### MDM Enrollment Issues
 
@@ -198,13 +226,26 @@ Review all scripts before running on production systems.
 - **Solution**: Delete the marker file: `sudo rm /usr/local/simplemdm/enroll_marker` and re-run the package.
 
 **Problem**: Need to see what failed
-- **Solution**: Check the log file: `cat /var/log/macos_enrollment.log` for timestamped details and error outputs.
+- **Solution**: Check the log file: `cat /var/log/macos_enrollment.log` for timestamped details. Failed operations also save individual logs in `/tmp` with paths shown in the summary.
 
 ---
 
 ## Version History
 
-### Version 2.0 (Current)
+### Version 2.1 (Current)
+- **BREAKING**: Script now requires sudo (`sudo ./macOSMachineSetup.sh`)
+- Added automatic Xcode license acceptance
+- Implemented real-time output streaming with `tee` for live feedback
+- Added color-coded status messages (blue/green/yellow/red) - no emojis
+- Bash 3.2 compatibility (works on default macOS bash)
+- Secure temporary sudoers rules for passwordless cask installations
+- Failed operation logs saved to `/tmp` with displayed paths
+- Improved error handling with detailed log preservation
+- User context preservation (files owned by user, not root)
+- Reusable helper functions following OOP principles
+- Added `--verbose` flag to brew bundle for detailed output
+
+### Version 2.0
 - Refactored for SimpleMDM nopkg deployment
 - Added GitHub-based repository downloading
 - Implemented first-run detection with marker files
