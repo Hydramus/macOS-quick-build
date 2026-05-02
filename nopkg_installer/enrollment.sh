@@ -1,39 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>_metadata</key>
-	<dict>
-		<key>created_by</key>
-		<string>hydramus</string>
-		<key>creation_date</key>
-		<date>2026-01-21T17:12:16Z</date>
-	</dict>
-	<key>autoremove</key>
-	<false/>
-	<key>catalogs</key>
-	<array>
-		<string>testing</string>
-	</array>
-	<key>display_name</key>
-	<string>Auto-Enroll via SimpleMDM</string>
-	<key>installcheck_script</key>
-	<string>#!/bin/bash
-MARKER_FILE="/usr/local/simplemdm/enroll_marker"
-if [ -f "$MARKER_FILE" ]; then
-  exit 1
-else
-  exit 0
-fi
-</string>
-	<key>installer_type</key>
-	<string>nopkg</string>
-	<key>minimum_os_version</key>
-	<string>12.0.0</string>
-	<key>name</key>
-	<string>nopkg-enroll</string>
-	<key>postinstall_script</key>
-	<string>#!/bin/bash
+#!/bin/bash
 # macOS Enrollment Script — single authoritative source for MDM deployment.
 # Used by both the nopkg/Munki flow and the LaunchDaemon pkg flow.
 # The nopkg pkginfo is generated from this file via build-pkginfo.sh.
@@ -44,10 +9,10 @@ fi
 set -euo pipefail
 
 # ===== Configuration =====
-consoleuser=$(scutil &lt;&lt;&lt; "show State:/Users/ConsoleUser" | awk '/Name :/ &amp;&amp; ! /loginwindow/ { print $3 }')
+consoleuser=$(scutil <<< "show State:/Users/ConsoleUser" | awk '/Name :/ && ! /loginwindow/ { print $3 }')
 UNAME_MACHINE="$(uname -m)"
 HOMEBREW_PREFIX="/usr/local"
-[[ "$UNAME_MACHINE" == "arm64" ]] &amp;&amp; HOMEBREW_PREFIX="/opt/homebrew"
+[[ "$UNAME_MACHINE" == "arm64" ]] && HOMEBREW_PREFIX="/opt/homebrew"
 
 LOGFILE="/var/log/macos_enrollment.log"
 MARKER_FILE="/usr/local/simplemdm/enroll_marker"
@@ -75,7 +40,7 @@ check_first_run() {
 wait_for_network() {
     local max_wait=20 count=1
     log "Waiting for network..."
-    while [[ $(ifconfig -a inet 2&gt;/dev/null | sed -n -e '/127.0.0.1/d' -e '/0.0.0.0/d' -e '/inet/p' | wc -l) -lt 1 ]]; do
+    while [[ $(ifconfig -a inet 2>/dev/null | sed -n -e '/127.0.0.1/d' -e '/0.0.0.0/d' -e '/inet/p' | wc -l) -lt 1 ]]; do
         if [[ $count -gt $max_wait ]]; then
             log "ERROR: No network after $max_wait attempts."
             exit 1
@@ -97,11 +62,11 @@ get_repo() {
     log "Downloading repo from $REPO_URL ..."
     mkdir -p "$WORK_DIR"
     cd "$WORK_DIR"
-    if ! curl -fsSL "$REPO_URL" -o repo.zip 2&gt;&amp;1 | tee -a "$LOGFILE"; then
+    if ! curl -fsSL "$REPO_URL" -o repo.zip 2>&1 | tee -a "$LOGFILE"; then
         log "ERROR: Failed to download repository"
         exit 1
     fi
-    unzip -q repo.zip 2&gt;&amp;1 | tee -a "$LOGFILE"
+    unzip -q repo.zip 2>&1 | tee -a "$LOGFILE"
     REPO_DIR=$(find "$WORK_DIR" -maxdepth 1 -type d -name "macOS-quick-build-*" | head -n 1)
     if [[ -z "$REPO_DIR" ]]; then
         log "ERROR: Could not locate extracted repo directory"
@@ -112,10 +77,10 @@ get_repo() {
 
 run_setup() {
     cd "$REPO_DIR"
-    chmod +x ./macOSMachineSetup.sh ./setup-system.sh ./setup-user.sh ./autobrew.sh ./rosetta-2-install.sh 2&gt;/dev/null || true
+    chmod +x ./macOSMachineSetup.sh ./setup-system.sh ./setup-user.sh ./autobrew.sh ./rosetta-2-install.sh 2>/dev/null || true
     log "================================================"
     log "Running macOSMachineSetup.sh ..."
-    if ./macOSMachineSetup.sh 2&gt;&amp;1 | tee -a "$LOGFILE"; then
+    if ./macOSMachineSetup.sh 2>&1 | tee -a "$LOGFILE"; then
         log "macOSMachineSetup.sh completed successfully."
     else
         log "WARNING: macOSMachineSetup.sh finished with errors — check $LOGFILE"
@@ -124,21 +89,21 @@ run_setup() {
 }
 
 create_marker() {
-    echo "Enrollment completed at $(date)" &gt; "$MARKER_FILE"
+    echo "Enrollment completed at $(date)" > "$MARKER_FILE"
     log "Marker written: $MARKER_FILE"
 }
 
 cleanup() {
-    rm -rf "$WORK_DIR" 2&gt;/dev/null || true
+    rm -rf "$WORK_DIR" 2>/dev/null || true
     log "Cleanup done."
 }
 
 show_success_popup() {
-    su -l "$consoleuser" -c "osascript &lt;&lt;EOD
+    su -l "$consoleuser" -c "osascript <<EOD
 tell application \"System Events\"
   display dialog \"Mac setup complete!\n\n Log: $LOGFILE\n\nQuestions? Contact IT Support.\" buttons {\"OK\"} default button 1 with title \"Setup Complete\" with icon note
 end tell
-EOD" 2&gt;&amp;1 | tee -a "$LOGFILE" || true
+EOD" 2>&1 | tee -a "$LOGFILE" || true
 }
 
 # ===== Main =====
@@ -158,10 +123,3 @@ log "========================================"
 log "Enrollment complete."
 log "========================================"
 exit 0
-</string>
-	<key>unattended_install</key>
-	<true/>
-	<key>version</key>
-	<string>2.1</string>
-</dict>
-</plist>
