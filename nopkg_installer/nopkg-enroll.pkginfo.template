@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>_metadata</key>
+	<dict>
+		<key>created_by</key>
+		<string>hydramus</string>
+		<key>creation_date</key>
+		<date>2026-01-21T17:12:16Z</date>
+	</dict>
+	<key>autoremove</key>
+	<false/>
+	<key>catalogs</key>
+	<array>
+		<string>testing</string>
+	</array>
+	<key>display_name</key>
+	<string>Auto-Enroll via SimpleMDM</string>
+	<key>installcheck_script</key>
+	<string>#!/bin/bash
+MARKER_FILE="/usr/local/simplemdm/enroll_marker"
+if [ -f "$MARKER_FILE" ]; then
+  exit 1
+else
+  exit 0
+fi
+</string>
+	<key>installer_type</key>
+	<string>nopkg</string>
+	<key>minimum_os_version</key>
+	<string>12.0.0</string>
+	<key>name</key>
+	<string>nopkg-enroll</string>
+	<key>postinstall_script</key>
+	<string>__POSTINSTALL_SCRIPT__</string>
+	<key>unattended_install</key>
+	<true/>
+	<key>version</key>
+	<string>2.1</string>
+</dict>
+</plist>

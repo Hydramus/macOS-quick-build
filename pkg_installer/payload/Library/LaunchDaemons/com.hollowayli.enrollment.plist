@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.hollowayli.enrollment</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/usr/local/macOS-quick-build/enrollment.sh</string>
+	</array>
+	<!-- Run once at load time (i.e. immediately after the pkg postinstall loads this daemon). -->
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>/var/log/macos_enrollment.log</string>
+	<key>StandardErrorPath</key>
+	<string>/var/log/macos_enrollment.log</string>
+	<!-- Don't restart automatically — enrollment is a one-shot operation. -->
+	<key>AbandonProcessGroup</key>
+	<true/>
+</dict>
+</plist>
