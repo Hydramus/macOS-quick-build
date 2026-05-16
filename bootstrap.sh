@@ -35,6 +35,7 @@ chmod +x \
     "${REPO_DIR}/setup-user.sh" \
     "${REPO_DIR}/autobrew.sh" \
     "${REPO_DIR}/rosetta-2-install.sh" \
+    "${REPO_DIR}/lib/common.sh" \
     2>/dev/null || true
 
 echo "[bootstrap] Starting setup..."
