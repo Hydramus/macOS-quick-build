@@ -9,6 +9,9 @@ set -euo pipefail
 
 REPO_URL="https://github.com/Hydramus/macOS-quick-build/archive/refs/heads/main.zip"
 WORK_DIR=$(mktemp -d /tmp/macos-setup-XXXXXXXX)
+# mktemp creates the directory 0700 (root-only). The console user needs to
+# traverse this path when macOSMachineSetup.sh calls: sudo -u <user> ./setup-user.sh
+chmod 755 "$WORK_DIR"
 
 if [[ $EUID -ne 0 ]]; then
     echo "[bootstrap] ERROR: run with sudo — e.g. curl ... | sudo bash"
