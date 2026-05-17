@@ -109,8 +109,12 @@ echo ""
 # ============================================
 print_status "info" "Enabling Touch ID for sudo"
 enable_touchid="auth       sufficient     pam_tid.so"
-run_with_error_capture "Touch ID for sudo" \
-    "/usr/bin/sed -i '' -e '1s/^//p; 1s/^.*/${enable_touchid}/' /etc/pam.d/sudo"
+if grep -qF "pam_tid.so" /etc/pam.d/sudo 2>/dev/null; then
+    print_status "info" "Touch ID for sudo already enabled — skipping"
+else
+    run_with_error_capture "Touch ID for sudo" \
+        "{ printf '%s\n' '$enable_touchid'; cat /etc/pam.d/sudo; } > /tmp/_pam_sudo && mv /tmp/_pam_sudo /etc/pam.d/sudo"
+fi
 echo ""
 
 # ============================================

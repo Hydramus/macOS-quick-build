@@ -32,12 +32,20 @@ ensure_path_entry "${HOMEBREW_PREFIX}/bin" "$ZSHRC_PATH"
 echo ""
 
 # ============================================
+# Homebrew Update
+# ============================================
+print_status "info" "Updating Homebrew before bundle install"
+run_with_error_capture "Homebrew update" \
+    "${HOMEBREW_PREFIX}/bin/brew update"
+echo ""
+
+# ============================================
 # Brewfile Package Installation
 # ============================================
 if [ -f "$BREWFILE_PATH" ]; then
     print_status "info" "Installing packages from Brewfile: $BREWFILE_PATH"
     run_with_error_capture "Homebrew bundle" \
-        "${HOMEBREW_PREFIX}/bin/brew bundle --verbose --file=\"$BREWFILE_PATH\""
+        "${HOMEBREW_PREFIX}/bin/brew bundle install --verbose --file=\"$BREWFILE_PATH\""
 else
     print_status "warning" "Brewfile not found at $BREWFILE_PATH"
     track_failure "Brewfile not found" "1" "Expected: $BREWFILE_PATH"

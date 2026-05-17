@@ -52,6 +52,17 @@ echo ""
 # Ensure brew is in PATH for subsequent steps
 export PATH="${HOMEBREW_PREFIX}/bin:$PATH"
 
+if [[ $SYSTEM_FAILED -ne 0 ]] && ! command_exists brew; then
+    print_status "error" "Homebrew unavailable after system phase — skipping user phase"
+    echo ""
+    echo "============================================"
+    echo "OVERALL SETUP SUMMARY"
+    echo "============================================"
+    print_status "warning" "System phase had failures — review output above"
+    print_status "warning" "User phase was skipped because Homebrew is not installed"
+    exit 1
+fi
+
 # ============================================
 # Phase 2: User-level setup (console user)
 # Temporarily grant passwordless brew for cask installs, then revoke.
