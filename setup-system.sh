@@ -92,8 +92,16 @@ echo ""
 
 # ============================================
 # SSH Remote Login
+# systemsetup -setremotelogin requires Full Disk Access on Monterey+;
+# loading the LaunchDaemon directly works without that entitlement.
 # ============================================
-run_with_error_capture "SSH remote login" "systemsetup -setremotelogin on"
+SSH_PLIST="/System/Library/LaunchDaemons/ssh.plist"
+if launchctl list com.openssh.sshd &>/dev/null; then
+    print_status "info" "SSH remote login is already enabled — skipping"
+else
+    run_with_error_capture "SSH remote login" \
+        "launchctl load -w '$SSH_PLIST'"
+fi
 echo ""
 
 # ============================================

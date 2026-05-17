@@ -31,6 +31,13 @@ fi
 print_status "info" "Running as root, configuring user: $consoleuser"
 echo ""
 
+# Ensure all scripts are executable (survives zip/tarball extraction that drops execute bits)
+chmod +x \
+    "${SCRIPT_DIR}/setup-system.sh" \
+    "${SCRIPT_DIR}/setup-user.sh" \
+    "${SCRIPT_DIR}/autobrew.sh" \
+    "${SCRIPT_DIR}/rosetta-2-install.sh" 2>/dev/null
+
 HOMEBREW_PREFIX=$(detect_architecture)
 SYSTEM_FAILED=0
 USER_FAILED=0
