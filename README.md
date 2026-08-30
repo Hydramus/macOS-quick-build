@@ -180,10 +180,12 @@ Run with `sudo ./macOSMachineSetup.sh`, not as `sudo -i` or in a root shell wher
 On a fresh Mac, `softwareupdate` sometimes needs a moment after first boot. Re-run the script. In an MDM context, the script will exit cleanly with an error rather than hanging on a GUI dialog.
 
 **Homebrew cask installs prompt for a password**
-Ensure you're running `sudo ./macOSMachineSetup.sh` — the orchestrator creates a temporary passwordless sudoers entry for brew during the user phase.
+Ensure you're running `sudo ./macOSMachineSetup.sh` — the orchestrator grants the console user temporary passwordless sudo for the duration of the user phase, then revokes it. This is required because cask pkg/script installers (Adobe Creative Cloud, Little Snitch, TeamViewer, ...) shell out to their own `sudo <staged installer>` call rather than going through `brew` itself, so a narrower grant scoped to just the `brew` binary doesn't cover them.
+
+Note this only silences the macOS admin-password prompt for installation. It does not — and cannot — supply an Adobe ID login; Creative Cloud's own sign-in screen on first launch is a separate, unattended-unfriendly step that Adobe only supports automating through its Admin Console enterprise packages, not via Homebrew.
 
 **A step failed — how do I see the full output?**
-Each failed step saves its output to a temp file and prints the path. Use `cat /tmp/tmp.XXXXXXXX` to inspect it. For MDM runs, check `/var/log/macos_enrollment.log`.
+Every `print_status`/`track_failure` call (in every script that sources `lib/common.sh`) is appended to `/var/log/macos_quick_build.log`, timestamped, so failures survive after the terminal output scrolls away. For MDM runs, also check `/var/log/macos_enrollment.log`.
 
 **MDM enrollment ran but setup didn't complete**
 Check `/var/log/macos_enrollment.log`. To re-run: `sudo rm /usr/local/simplemdm/enroll_marker` and redeploy.
@@ -193,6 +195,8 @@ Check `/var/log/macos_enrollment.log`. To re-run: `sudo rm /usr/local/simplemdm/
 ## Security Notice
 
 This script modifies system-level settings including SSH remote login, sudo authentication (Touch ID), and system hostname. Review all scripts before running on production systems.
+
+During Phase 2 (user setup), the console user is granted full passwordless `sudo` (`NOPASSWD: ALL`) via a temporary `/etc/sudoers.d/` entry, needed so cask installers can silently self-elevate. This grant exists only for the duration of the user-setup phase and is removed right after, including when that phase reports failures — but it does mean any process running as the console user during that window could also use sudo without a prompt, and the grant would be left in place if the machine crashes or loses power mid-run (check `/etc/sudoers.d/` for a leftover `brew_temp_*` file and remove it manually if so). Acceptable for a freshly imaged/unattended machine; be aware of it if you run this on a machine already in active use.
 
 ---
 

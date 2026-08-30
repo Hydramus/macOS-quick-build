@@ -19,6 +19,26 @@ COLOR_RESET='\033[0m'
 FAILED_STEPS=()
 
 # ============================================
+# Progress log
+# Every print_status/track_failure call is also appended here so a run
+# started any way (direct sudo, MDM enrollment.sh, etc.) leaves a durable
+# record. LOG_FILE can be pre-set/exported by the caller; otherwise this
+# default is used and shared across all scripts in this repo.
+# ============================================
+LOG_FILE="${LOG_FILE:-/var/log/macos_quick_build.log}"
+
+_ensure_log_file() {
+    mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null
+    touch "$LOG_FILE" 2>/dev/null
+    chmod 666 "$LOG_FILE" 2>/dev/null
+}
+_ensure_log_file
+
+log_to_file() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $1" >> "$LOG_FILE" 2>/dev/null
+}
+
+# ============================================
 # print_status <level> <message>
 # Levels: info | success | warning | error
 # ============================================
@@ -32,6 +52,7 @@ print_status() {
         error)   echo -e "${COLOR_RED}[ERROR]${COLOR_RESET}   $message" ;;
         *)       echo -e "$message" ;;
     esac
+    log_to_file "[${level^^}] $message"
 }
 
 # ============================================
@@ -111,12 +132,14 @@ print_summary() {
     echo "============================================"
     echo "$title"
     echo "============================================"
+    log_to_file "===== $title ====="
     if [[ ${#FAILED_STEPS[@]} -eq 0 ]]; then
         print_status "success" "All steps completed successfully"
     else
         print_status "warning" "${#FAILED_STEPS[@]} step(s) failed:"
         for step in "${FAILED_STEPS[@]}"; do
             echo -e "  ${COLOR_RED}•${COLOR_RESET} $step"
+            log_to_file "  - $step"
         done
     fi
     echo ""
