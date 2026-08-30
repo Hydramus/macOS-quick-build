@@ -166,7 +166,7 @@ macOS-quick-build/
     ├── build-pkg.sh                # Builds the self-contained .pkg
     └── payload/
         └── Library/LaunchDaemons/
-            └── com.hollowayli.enrollment.plist
+            └── com.macosquickbuild.enrollment.plist
 ```
 
 ---

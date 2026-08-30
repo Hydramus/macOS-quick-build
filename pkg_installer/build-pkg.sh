@@ -17,10 +17,10 @@ PKG_SCRIPTS_DIR="${BUILD_DIR}/scripts"
 DIST_DIR="${SCRIPT_DIR}/dist"
 
 INSTALL_PATH="/usr/local/macOS-quick-build"
-LAUNCHDAEMON_LABEL="com.hollowayli.enrollment"
+LAUNCHDAEMON_LABEL="com.macosquickbuild.enrollment"
 LAUNCHDAEMON_PLIST="${SCRIPT_DIR}/payload/Library/LaunchDaemons/${LAUNCHDAEMON_LABEL}.plist"
 
-PKG_IDENTIFIER="com.hollowayli.macos-quick-build"
+PKG_IDENTIFIER="com.macosquickbuild.pkg"
 PKG_VERSION="$(date '+%Y.%m.%d')"
 PKG_NAME="macOS-QuickBuild-${PKG_VERSION}.pkg"
 
@@ -64,7 +64,7 @@ cp "$LAUNCHDAEMON_PLIST" "${PAYLOAD_DIR}/Library/LaunchDaemons/"
 cat > "${PKG_SCRIPTS_DIR}/postinstall" << 'POSTINSTALL'
 #!/bin/bash
 # Load the LaunchDaemon so enrollment starts right after pkg installation.
-/bin/launchctl load /Library/LaunchDaemons/com.hollowayli.enrollment.plist 2>/dev/null || true
+/bin/launchctl load /Library/LaunchDaemons/com.macosquickbuild.enrollment.plist 2>/dev/null || true
 exit 0
 POSTINSTALL
 chmod +x "${PKG_SCRIPTS_DIR}/postinstall"
