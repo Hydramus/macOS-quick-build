@@ -17,6 +17,8 @@ brew "node"
 brew "python"
 brew "fzf"
 brew "ripgrep"
+brew "jq"
+brew "zstd"
 
 
 # Apps
