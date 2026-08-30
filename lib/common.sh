@@ -52,7 +52,10 @@ print_status() {
         error)   echo -e "${COLOR_RED}[ERROR]${COLOR_RESET}   $message" ;;
         *)       echo -e "$message" ;;
     esac
-    log_to_file "[${level^^}] $message"
+    # macOS ships Bash 3.2 (no ${var^^} uppercase expansion), so use tr instead.
+    local level_upper
+    level_upper=$(echo "$level" | tr '[:lower:]' '[:upper:]')
+    log_to_file "[${level_upper}] $message"
 }
 
 # ============================================
