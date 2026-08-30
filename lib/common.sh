@@ -99,6 +99,19 @@ detect_architecture() {
 }
 
 # ============================================
+# macos_major_version
+# Prints the major macOS version number (e.g. 15 for 15.4, 10 for 10.15).
+# Prints 0 if sw_vers is unavailable (i.e. not running on macOS).
+# ============================================
+macos_major_version() {
+    if [[ -x /usr/bin/sw_vers ]]; then
+        /usr/bin/sw_vers -productVersion | cut -d. -f1
+    else
+        echo "0"
+    fi
+}
+
+# ============================================
 # command_exists <command>
 # Returns 0 if command is available in PATH, 1 otherwise.
 # ============================================

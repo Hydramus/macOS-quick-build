@@ -49,6 +49,7 @@ Setup runs in two phases:
 - Installs oh-my-zsh (unattended)
 - Adds Homebrew to `~/.zshrc`
 - Installs all packages from `configfiles/Brewfile`
+- Installs Little Snitch, picking the cask that matches the macOS release
 - Applies the dock layout from `configfiles/com.apple.dock.plist`
 
 A summary of any failures is printed at the end.
@@ -129,6 +130,13 @@ Edit `configfiles/Brewfile`:
 brew "your-cli-tool"
 cask "your-app-name"
 ```
+
+Little Snitch is the exception: it is installed by `setup-user.sh` rather than
+from the Brewfile, because the cask name depends on the macOS release —
+`little-snitch` (6.x) requires macOS 14+, `little-snitch@5` (5.x) requires
+macOS 11+. The script reads `sw_vers -productVersion` and picks accordingly;
+on macOS 10.x it logs a warning and skips. To change the cut-off, edit the
+version comparison in `setup-user.sh`.
 
 ### Dock layout
 

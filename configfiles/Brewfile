@@ -19,12 +19,15 @@ brew "fzf"
 brew "ripgrep"
 brew "jq"
 brew "zstd"
+brew "duti" # sets Chrome as the default browser in setup-user.sh
 
 
 # Apps
 cask "dropbox"
 cask "google-chrome"
-cask "little-snitch@5"
+# little-snitch is installed by setup-user.sh, not here: the cask name
+# depends on the macOS release (little-snitch = 6.x, needs macOS 14+;
+# little-snitch@5 = 5.x, needs macOS 11+).
 cask "iterm2"
 cask "caffeine"
 cask "rectangle"
