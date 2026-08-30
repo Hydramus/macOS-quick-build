@@ -49,7 +49,8 @@ Setup runs in two phases:
 - Installs oh-my-zsh (unattended)
 - Adds Homebrew to `~/.zshrc`
 - Installs all packages from `configfiles/Brewfile`
-- Installs Little Snitch, picking the cask that matches the macOS release
+- Installs Little Snitch, picking the cask that matches the macOS release,
+  suppressing its licence/install prompts, and applying a template configuration
 - Applies the dock layout from `configfiles/com.apple.dock.plist`
 
 A summary of any failures is printed at the end.
@@ -131,12 +132,28 @@ brew "your-cli-tool"
 cask "your-app-name"
 ```
 
-Little Snitch is the exception: it is installed by `setup-user.sh` rather than
-from the Brewfile, because the cask name depends on the macOS release —
+### Little Snitch
+
+Little Snitch is the exception to the Brewfile: it is installed by
+`setup-user.sh` instead, because the cask name depends on the macOS release —
 `little-snitch` (6.x) requires macOS 14+, `little-snitch@5` (5.x) requires
 macOS 11+. The script reads `sw_vers -productVersion` and picks accordingly;
-on macOS 10.x it logs a warning and skips. To change the cut-off, edit the
-version comparison in `setup-user.sh`.
+on macOS 10.x it logs a warning and skips.
+
+It is also installed unattended: the licence agreement, installer and welcome
+prompts are suppressed via user defaults, and a template configuration you
+export from a reference Mac (**File > Create Backup…**) is applied — either
+through the Little Snitch 6 mass deployment file staged by `setup-system.sh`,
+or through `littlesnitch restore-model`.
+
+One prompt cannot be scripted away: macOS requires approval of the network
+system extension. Pre-approving it needs the signed
+`configfiles/littlesnitch/LittleSnitch.mobileconfig` profile pushed from MDM to
+a supervised Mac. Without that, someone clicks through System Settings once per
+machine; everything else still runs unattended.
+
+Setup and the licence-key handling are documented in
+[`configfiles/littlesnitch/README.md`](configfiles/littlesnitch/README.md).
 
 ### Dock layout
 
@@ -163,6 +180,7 @@ macOS-quick-build/
 │   └── common.sh                   # Shared utilities (logging, error tracking)
 ├── configfiles/
 │   ├── Brewfile                    # Package definitions
+│   ├── littlesnitch/               # Little Snitch deployment config + MDM profile
 │   └── com.apple.dock.plist        # Dock layout
 ├── nopkg_installer/                # SimpleMDM nopkg/Munki flow
 │   ├── enrollment.sh               # Single source for MDM enrollment logic

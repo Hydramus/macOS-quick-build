@@ -120,6 +120,29 @@ command_exists() {
 }
 
 # ============================================
+# littlesnitch_cli
+# Prints the path to the `littlesnitch` command line tool, or nothing if it
+# cannot be found. Objective Development does not document a fixed install
+# location, so probe the known ones and fall back to PATH.
+# ============================================
+littlesnitch_cli() {
+    local candidate
+    for candidate in \
+        /usr/local/bin/littlesnitch \
+        /opt/homebrew/bin/littlesnitch \
+        "/Applications/Little Snitch.app/Contents/Components/littlesnitch" \
+        "/Applications/Little Snitch.app/Contents/MacOS/littlesnitch" \
+        "/Library/Application Support/Objective Development/Little Snitch/littlesnitch"
+    do
+        if [[ -x "$candidate" ]]; then
+            echo "$candidate"
+            return 0
+        fi
+    done
+    command -v littlesnitch 2>/dev/null
+}
+
+# ============================================
 # ensure_path_entry <path_dir> <rc_file>
 # Appends an export PATH line to rc_file if it is not already present.
 # ============================================

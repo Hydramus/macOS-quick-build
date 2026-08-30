@@ -169,3 +169,9 @@ Icon?
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# Little Snitch mass-deployment config — contains the site licence key.
+# Generate it from your own .lsbackup (see configfiles/littlesnitch/README.md).
+# If this repo is private and you want it in the deployment payload, commit it
+# deliberately with: git add -f configfiles/littlesnitch/LittleSnitchMassDeploymentConfiguration.json
+configfiles/littlesnitch/LittleSnitchMassDeploymentConfiguration.json

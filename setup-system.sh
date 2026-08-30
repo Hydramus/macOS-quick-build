@@ -126,6 +126,44 @@ fi
 echo ""
 
 # ============================================
+# Little Snitch mass deployment configuration
+#
+# Little Snitch 6 reads /var/root/LittleSnitchMassDeploymentConfiguration.json
+# on its VERY FIRST launch and applies it as if restoring a backup — licence
+# key included. It then deletes the file, because it holds the licence key.
+#
+# The window only exists on a machine where Little Snitch has never run:
+#   - the network extension must not be activated yet, and
+#   - /Library/Application Support/Objective Development/Little Snitch
+#     must not exist yet.
+# Otherwise the file is ignored (an anti-tampering measure), and the config
+# has to be applied afterwards with `littlesnitch restore-model` instead —
+# which is what setup-user.sh falls back to.
+#
+# So this has to be staged now, in the root phase, before the cask is
+# installed and the app is first launched in Phase 2.
+# ============================================
+LS_MASS_CONFIG_SRC="${SCRIPT_DIR}/configfiles/littlesnitch/LittleSnitchMassDeploymentConfiguration.json"
+LS_MASS_CONFIG_DST="/var/root/LittleSnitchMassDeploymentConfiguration.json"
+LS_SUPPORT_DIR="/Library/Application Support/Objective Development/Little Snitch"
+
+if [[ ! -f "$LS_MASS_CONFIG_SRC" ]]; then
+    print_status "info" "No Little Snitch mass deployment config at $LS_MASS_CONFIG_SRC — skipping (see configfiles/littlesnitch/README.md)"
+elif ! /usr/bin/plutil -lint "$LS_MASS_CONFIG_SRC" &>/dev/null && ! /usr/bin/python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$LS_MASS_CONFIG_SRC" &>/dev/null; then
+    track_failure "Little Snitch mass deployment config" "1" "$LS_MASS_CONFIG_SRC is not valid JSON — not staging it"
+else
+    if [[ -d "$LS_SUPPORT_DIR" ]]; then
+        print_status "warning" "Little Snitch has run on this Mac before ($LS_SUPPORT_DIR exists) — mass deployment config will be IGNORED; setup-user.sh will try restore-model instead"
+    fi
+    if /usr/bin/systemextensionsctl list 2>/dev/null | grep -q "at.obdev.littlesnitch"; then
+        print_status "warning" "Little Snitch network extension is already activated — mass deployment config will be IGNORED; setup-user.sh will try restore-model instead"
+    fi
+    run_with_error_capture "Stage Little Snitch mass deployment config" \
+        "install -m 600 -o root -g wheel '$LS_MASS_CONFIG_SRC' '$LS_MASS_CONFIG_DST'"
+fi
+echo ""
+
+# ============================================
 # Homebrew (directory creation and initial install requires root)
 # ============================================
 run_with_error_capture "Homebrew installation" "${SCRIPT_DIR}/autobrew.sh"

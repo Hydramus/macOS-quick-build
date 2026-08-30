@@ -1,0 +1,23 @@
+{
+  "massDeploymentLicenseKey": "REPLACE-WITH-YOUR-LICENSE-KEY",
+  "massDeploymentLicenseOwner": "REPLACE-WITH-YOUR-ORGANISATION",
+
+  "globalDefaults": {
+    "activeSilentMode": 0,
+    "allowCommandLineAccess": 1
+  },
+
+  "groups": {
+    "aaaaac": {
+      "isActive": true,
+      "type": "builtinMacOSServices"
+    },
+    "aaaaad": {
+      "isActive": true,
+      "type": "builtinICloudServices"
+    }
+  },
+
+  "rules": [],
+  "users": []
+}

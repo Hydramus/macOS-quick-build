@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <array>
+
+      <!-- Allow Network Filter -->
+      <dict>
+        <key>FilterDataProviderBundleIdentifier</key>
+        <string>at.obdev.littlesnitch.networkextension</string>
+        <key>FilterDataProviderDesignatedRequirement</key>
+        <string>identifier "at.obdev.littlesnitch.networkextension" and anchor apple generic and certificate leaf[subject.OU] = MLZF7K7B5R</string>
+        <key>FilterGrade</key>
+        <string>firewall</string>
+        <key>FilterSockets</key>
+        <true/>
+        <key>FilterType</key>
+        <string>Plugin</string>
+        <key>PayloadDisplayName</key>
+        <string>Allow Little Snitch Network Filter</string>
+        <key>PayloadIdentifier</key>
+        <string>at.obdev.littlesnitch.EC5624B8-CFB5-43C0-98EC-561C70A00739</string>
+        <key>PayloadType</key>
+        <string>com.apple.webcontent-filter</string>
+        <key>PayloadUUID</key>
+        <string>EC5624B8-CFB5-43C0-98EC-561C70A00739</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+        <key>PluginBundleID</key>
+        <string>at.obdev.littlesnitch</string>
+        <key>UserDefinedName</key>
+        <string>Little Snitch</string>
+      </dict>
+
+      <!-- Network Extension Configuration -->
+      <dict>
+        <key>PayloadType</key>
+        <string>com.apple.networkextension.managed</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+        <key>PayloadIdentifier</key>
+        <string>at.obdev.littlesnitch.D7B4083E-56E9-4B52-A684-E4E09960D82D</string>
+        <key>PayloadUUID</key>
+        <string>D7B4083E-56E9-4B52-A684-E4E09960D82D</string>
+        <key>PayloadDisplayName</key>
+        <string>Allow Little Snitch Network Extension</string>
+        <key>FilterDataProviderBundleIdentifier</key>
+        <string>at.obdev.littlesnitch.networkextension</string>
+        <key>FilterDataProviderDesignatedRequirement</key>
+        <string>identifier "at.obdev.littlesnitch.networkextension" and anchor apple generic and certificate leaf[subject.OU] = MLZF7K7B5R</string>
+      </dict>
+
+      <!-- System Extension Policy -->
+      <dict>
+        <key>PayloadType</key>
+        <string>com.apple.system-extension-policy</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+        <key>PayloadIdentifier</key>
+        <string>at.obdev.littlesnitch.E967686C-CADC-4DF3-A7E2-A6C4F7042056</string>
+        <key>PayloadUUID</key>
+        <string>E967686C-CADC-4DF3-A7E2-A6C4F7042056</string>
+        <key>PayloadDisplayName</key>
+        <string>Allow Little Snitch Network Extension</string>
+        <key>AllowedSystemExtensions</key>
+        <dict>
+          <key>MLZF7K7B5R</key> <!-- Obdev's Team ID -->
+          <array>
+            <string>at.obdev.littlesnitch.networkextension</string> <!-- Bundle ID of the system extension -->
+          </array>
+        </dict>
+      </dict>
+
+    </array>
+
+    <!-- General Configuration -->
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadIdentifier</key>
+    <string>at.obdev.littlesnitch.6E7C5A60-5478-4A32-8883-C644D2B7F1ED</string>
+    <key>PayloadScope</key>
+    <string>System</string>
+    <key>PayloadUUID</key>
+    <string>6E7C5A60-5478-4A32-8883-C644D2B7F1ED</string>
+    <key>PayloadDisplayName</key>
+    <string>Little Snitch Configuration Profile</string>
+  </dict>
+</plist>
