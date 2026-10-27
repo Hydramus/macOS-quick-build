@@ -72,18 +72,9 @@ fi
 
 # ============================================
 # Phase 2: User-level setup (console user)
-# Temporarily grant passwordless sudo, then revoke.
-#
-# NOPASSWD-ing just the brew binary isn't enough: cask pkg/script
-# installers (adobe-creative-cloud, little-snitch, teamviewer, ...) don't
-# run "sudo brew ..." — they stage their own installer under the Caskroom
-# and shell out to "sudo <staged path>/Install --mode=silent" (or
-# /usr/sbin/installer) directly. Those staged paths are versioned and vary
-# per cask/run, so they can't be enumerated in advance. Grant full NOPASSWD
-# sudo to the console user for the duration of this phase only, then
-# revoke it immediately after — this is what actually makes cask installs
-# silent/unattended (needed for MDM/LaunchDaemon runs with no GUI to
-# answer a password prompt).
+# The Brewfile holds only formulae, which need no sudo, so the user
+# phase runs without any extra privileges. GUI apps (casks) come from
+# the MDM instead.
 # ============================================
 echo "============================================"
 echo "Phase 2: User Setup"
@@ -91,22 +82,10 @@ echo "============================================"
 echo ""
 
 BREWFILE_PATH="${SCRIPT_DIR}/configfiles/Brewfile"
-SUDOERS_TEMP="/etc/sudoers.d/brew_temp_$$"
-
-if [ -f "$BREWFILE_PATH" ]; then
-    echo "$consoleuser ALL=(ALL) NOPASSWD: ALL" > "$SUDOERS_TEMP"
-    chmod 0440 "$SUDOERS_TEMP"
-    print_status "info" "Temporary passwordless sudo granted to $consoleuser for cask installs (revoked after Phase 2)"
-fi
 
 if ! sudo -u "$consoleuser" -H "${SCRIPT_DIR}/setup-user.sh" "$BREWFILE_PATH"; then
     print_status "warning" "User phase completed with failures"
     USER_FAILED=1
-fi
-
-if [ -f "$SUDOERS_TEMP" ]; then
-    rm -f "$SUDOERS_TEMP"
-    print_status "success" "Temporary sudo access revoked"
 fi
 echo ""
 

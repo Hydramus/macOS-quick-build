@@ -1,7 +1,7 @@
 #!/bin/bash
 # System-level setup phase — must run as root.
 # Called by macOSMachineSetup.sh with the console user as $1.
-# Covers: Xcode CLT, Xcode license, Rosetta 2, SSH, hostname, Touch ID, Homebrew installation.
+# Covers: Xcode CLT, Xcode license, Rosetta 2, SSH, hostname, Touch ID, Chrome policy, Homebrew installation.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
@@ -126,41 +126,20 @@ fi
 echo ""
 
 # ============================================
-# Little Snitch mass deployment configuration
-#
-# Little Snitch 6 reads /var/root/LittleSnitchMassDeploymentConfiguration.json
-# on its VERY FIRST launch and applies it as if restoring a backup — licence
-# key included. It then deletes the file, because it holds the licence key.
-#
-# The window only exists on a machine where Little Snitch has never run:
-#   - the network extension must not be activated yet, and
-#   - /Library/Application Support/Objective Development/Little Snitch
-#     must not exist yet.
-# Otherwise the file is ignored (an anti-tampering measure), and the config
-# has to be applied afterwards with `littlesnitch restore-model` instead —
-# which is what setup-user.sh falls back to.
-#
-# So this has to be staged now, in the root phase, before the cask is
-# installed and the app is first launched in Phase 2.
+# Chrome telemetry off
+# A system-wide managed policy, since Chrome ignores plain user defaults
+# for these keys. Written even if Chrome isn't installed yet (the MDM
+# installs it); Chrome reads it on launch.
 # ============================================
-LS_MASS_CONFIG_SRC="${SCRIPT_DIR}/configfiles/littlesnitch/LittleSnitchMassDeploymentConfiguration.json"
-LS_MASS_CONFIG_DST="/var/root/LittleSnitchMassDeploymentConfiguration.json"
-LS_SUPPORT_DIR="/Library/Application Support/Objective Development/Little Snitch"
-
-if [[ ! -f "$LS_MASS_CONFIG_SRC" ]]; then
-    print_status "info" "No Little Snitch mass deployment config at $LS_MASS_CONFIG_SRC — skipping (see configfiles/littlesnitch/README.md)"
-elif ! /usr/bin/plutil -lint "$LS_MASS_CONFIG_SRC" &>/dev/null && ! /usr/bin/python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$LS_MASS_CONFIG_SRC" &>/dev/null; then
-    track_failure "Little Snitch mass deployment config" "1" "$LS_MASS_CONFIG_SRC is not valid JSON — not staging it"
-else
-    if [[ -d "$LS_SUPPORT_DIR" ]]; then
-        print_status "warning" "Little Snitch has run on this Mac before ($LS_SUPPORT_DIR exists) — mass deployment config will be IGNORED; setup-user.sh will try restore-model instead"
-    fi
-    if /usr/bin/systemextensionsctl list 2>/dev/null | grep -q "at.obdev.littlesnitch"; then
-        print_status "warning" "Little Snitch network extension is already activated — mass deployment config will be IGNORED; setup-user.sh will try restore-model instead"
-    fi
-    run_with_error_capture "Stage Little Snitch mass deployment config" \
-        "install -m 600 -o root -g wheel '$LS_MASS_CONFIG_SRC' '$LS_MASS_CONFIG_DST'"
-fi
+CHROME_POLICY_PLIST="/Library/Managed Preferences/com.google.Chrome.plist"
+run_with_error_capture "Chrome telemetry policy" \
+    "mkdir -p '/Library/Managed Preferences' && \
+     defaults write '$CHROME_POLICY_PLIST' MetricsReportingEnabled -bool false && \
+     defaults write '$CHROME_POLICY_PLIST' URLKeyedAnonymizedDataCollectionEnabled -bool false && \
+     defaults write '$CHROME_POLICY_PLIST' ChromeVariations -int 0 && \
+     defaults write '$CHROME_POLICY_PLIST' FeedbackSurveysEnabled -bool false && \
+     chown root:wheel '$CHROME_POLICY_PLIST' && \
+     chmod 644 '$CHROME_POLICY_PLIST'"
 echo ""
 
 # ============================================

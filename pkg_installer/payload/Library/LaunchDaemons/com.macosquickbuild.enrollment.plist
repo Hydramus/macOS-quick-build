@@ -16,7 +16,10 @@
 	<string>/var/log/macos_enrollment.log</string>
 	<key>StandardErrorPath</key>
 	<string>/var/log/macos_enrollment.log</string>
-	<!-- Don't restart automatically — enrollment is a one-shot operation. -->
+	<!-- Try again every 15 minutes until someone is logged in; once the marker
+	     exists, enrollment.sh exits at once. -->
+	<key>StartInterval</key>
+	<integer>900</integer>
 	<key>AbandonProcessGroup</key>
 	<true/>
 </dict>

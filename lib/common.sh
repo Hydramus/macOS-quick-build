@@ -99,47 +99,11 @@ detect_architecture() {
 }
 
 # ============================================
-# macos_major_version
-# Prints the major macOS version number (e.g. 15 for 15.4, 10 for 10.15).
-# Prints 0 if sw_vers is unavailable (i.e. not running on macOS).
-# ============================================
-macos_major_version() {
-    if [[ -x /usr/bin/sw_vers ]]; then
-        /usr/bin/sw_vers -productVersion | cut -d. -f1
-    else
-        echo "0"
-    fi
-}
-
-# ============================================
 # command_exists <command>
 # Returns 0 if command is available in PATH, 1 otherwise.
 # ============================================
 command_exists() {
     command -v "$1" &>/dev/null
-}
-
-# ============================================
-# littlesnitch_cli
-# Prints the path to the `littlesnitch` command line tool, or nothing if it
-# cannot be found. Objective Development does not document a fixed install
-# location, so probe the known ones and fall back to PATH.
-# ============================================
-littlesnitch_cli() {
-    local candidate
-    for candidate in \
-        /usr/local/bin/littlesnitch \
-        /opt/homebrew/bin/littlesnitch \
-        "/Applications/Little Snitch.app/Contents/Components/littlesnitch" \
-        "/Applications/Little Snitch.app/Contents/MacOS/littlesnitch" \
-        "/Library/Application Support/Objective Development/Little Snitch/littlesnitch"
-    do
-        if [[ -x "$candidate" ]]; then
-            echo "$candidate"
-            return 0
-        fi
-    done
-    command -v littlesnitch 2>/dev/null
 }
 
 # ============================================

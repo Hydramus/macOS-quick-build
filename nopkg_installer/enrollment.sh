@@ -3,8 +3,8 @@
 # Used by both the nopkg/Munki flow and the LaunchDaemon pkg flow.
 # The nopkg pkginfo is generated from this file via build-pkginfo.sh.
 #
-# If scripts are bundled on-disk (LaunchDaemon pkg), they are used directly.
-# Otherwise, the repo is downloaded from GitHub (nopkg flow).
+# Nothing is downloaded at run time. The scripts are either bundled on disk
+# (LaunchDaemon pkg) or embedded below as a tarball by build-pkginfo.sh (nopkg).
 
 set -euo pipefail
 
@@ -16,11 +16,12 @@ HOMEBREW_PREFIX="/usr/local"
 
 LOGFILE="/var/log/macos_enrollment.log"
 MARKER_FILE="/usr/local/simplemdm/enroll_marker"
-REPO_URL="https://github.com/Hydramus/macOS-quick-build/archive/refs/heads/main.zip"
 WORK_DIR="/tmp/macos-setup-$$"
 
-# If the pkg installer bundled scripts here, use them instead of downloading.
+# If the pkg installer bundled scripts here, use them.
 BUNDLED_SETUP="/usr/local/macOS-quick-build/macOSMachineSetup.sh"
+# Otherwise this base64 tar.gz of the repo, filled in by build-pkginfo.sh.
+PAYLOAD="__PAYLOAD__"
 REPO_DIR=""
 
 # ===== Logging =====
@@ -35,6 +36,15 @@ check_first_run() {
     fi
     log "First run — starting enrollment."
     mkdir -p "$(dirname "$MARKER_FILE")"
+}
+
+# At the login window or in Setup Assistant there is no user to set up.
+# Exit non-zero without the marker so Munki (or the LaunchDaemon) tries again.
+check_console_user() {
+    if [[ -z "$consoleuser" || "$consoleuser" == "root" || "$consoleuser" == "_mbsetupuser" ]]; then
+        log "No user logged in yet — will try again on the next run."
+        exit 1
+    fi
 }
 
 wait_for_network() {
@@ -59,20 +69,18 @@ get_repo() {
         return 0
     fi
 
-    log "Downloading repo from $REPO_URL ..."
-    mkdir -p "$WORK_DIR"
-    cd "$WORK_DIR"
-    if ! curl -fsSL "$REPO_URL" -o repo.zip 2>&1 | tee -a "$LOGFILE"; then
-        log "ERROR: Failed to download repository"
+    # A filled-in payload is long; the placeholder is 11 characters
+    if [[ ${#PAYLOAD} -lt 100 ]]; then
+        log "ERROR: No bundled scripts and no embedded payload. Build the pkginfo with build-pkginfo.sh."
         exit 1
     fi
-    unzip -q repo.zip 2>&1 | tee -a "$LOGFILE"
-    REPO_DIR=$(find "$WORK_DIR" -maxdepth 1 -type d -name "macOS-quick-build-*" | head -n 1)
-    if [[ -z "$REPO_DIR" ]]; then
-        log "ERROR: Could not locate extracted repo directory"
+    REPO_DIR="$WORK_DIR/macOS-quick-build"
+    mkdir -p "$REPO_DIR"
+    if ! echo "$PAYLOAD" | base64 -D | tar -xzf - -C "$REPO_DIR"; then
+        log "ERROR: Could not unpack the embedded payload"
         exit 1
     fi
-    log "Repo extracted to: $REPO_DIR"
+    log "Embedded payload unpacked to: $REPO_DIR"
 }
 
 run_setup() {
@@ -112,6 +120,7 @@ log "Enrollment started | user: $consoleuser | arch: $UNAME_MACHINE"
 log "========================================"
 
 check_first_run
+check_console_user
 wait_for_network
 get_repo
 run_setup

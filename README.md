@@ -43,15 +43,17 @@ Setup runs in two phases:
 - Enables SSH remote login
 - Sets hostname to `HL-<serial-number>`
 - Enables Touch ID for sudo
+- Turns off Chrome telemetry (managed policy)
 - Installs Homebrew with correct prefix for the architecture
 
-**Phase 2 — User (runs as your account):**
+**Phase 2 — User (runs as your account, no sudo):**
 - Installs oh-my-zsh (unattended)
 - Adds Homebrew to `~/.zshrc`
-- Installs all packages from `configfiles/Brewfile`
-- Installs Little Snitch, picking the cask that matches the macOS release,
-  suppressing its licence/install prompts, and applying a template configuration
+- Installs the command line tools from `configfiles/Brewfile`
+- Sets Chrome as the default browser, if Chrome is already installed
 - Applies the dock layout from `configfiles/com.apple.dock.plist`
+
+GUI apps are not in the Brewfile: install them with your MDM (for example Munki NoPkgs that call Installomator), which runs as root and needs no user password.
 
 A summary of any failures is printed at the end.
 
@@ -65,20 +67,15 @@ Two options are available. Both use `nopkg_installer/enrollment.sh` as the singl
 
 Suitable if you're already using SimpleMDM with Munki.
 
-1. **Update the repo URL** in `nopkg_installer/enrollment.sh` if you've forked the repo:
-   ```bash
-   REPO_URL="https://github.com/Hydramus/macOS-quick-build/archive/refs/heads/main.zip"
-   ```
-
-2. **Generate the pkginfo** from `enrollment.sh`:
+1. **Commit** your changes, then **generate the pkginfo**:
    ```bash
    ./nopkg_installer/build-pkginfo.sh
    ```
-   This produces `nopkg_installer/nopkg-enroll.pkginfo`. Re-run this whenever `enrollment.sh` changes.
+   This produces `nopkg_installer/nopkg-enroll.pkginfo`, with the setup scripts from `HEAD` embedded as a base64 tarball. It refuses to build from uncommitted changes. Re-run it after every change.
 
-3. **Upload** `nopkg-enroll.pkginfo` to SimpleMDM and assign it to your device group.
+2. **Upload** `nopkg-enroll.pkginfo` to SimpleMDM and assign it to a group that holds only new Macs (it resets the Dock, so keep it away from Macs already in use).
 
-On first login, Munki runs the `postinstall_script` (which is `enrollment.sh` verbatim), downloads the repo, and runs the full setup unattended.
+Munki runs the `postinstall_script` (`enrollment.sh` with the payload), unpacks the embedded scripts and runs the full setup unattended. Nothing is downloaded from GitHub, so a change to this repo reaches a Mac only when you rebuild and re-upload. If no one is logged in yet, it exits without the marker and Munki tries again on its next run.
 
 ### Option B — Self-contained pkg (LaunchDaemon)
 
@@ -129,40 +126,20 @@ Edit `configfiles/Brewfile`:
 
 ```ruby
 brew "your-cli-tool"
-cask "your-app-name"
 ```
 
-### Little Snitch
-
-Little Snitch is the exception to the Brewfile: it is installed by
-`setup-user.sh` instead, because the cask name depends on the macOS release —
-`little-snitch` (6.x) requires macOS 14+, `little-snitch@5` (5.x) requires
-macOS 11+. The script reads `sw_vers -productVersion` and picks accordingly;
-on macOS 10.x it logs a warning and skips.
-
-It is also installed unattended: the licence agreement, installer and welcome
-prompts are suppressed via user defaults, and a template configuration you
-export from a reference Mac (**File > Create Backup…**) is applied — either
-through the Little Snitch 6 mass deployment file staged by `setup-system.sh`,
-or through `littlesnitch restore-model`.
-
-One prompt cannot be scripted away: macOS requires approval of the network
-system extension. Pre-approving it needs the signed
-`configfiles/littlesnitch/LittleSnitch.mobileconfig` profile pushed from MDM to
-a supervised Mac. Without that, someone clicks through System Settings once per
-machine; everything else still runs unattended.
-
-Setup and the licence-key handling are documented in
-[`configfiles/littlesnitch/README.md`](configfiles/littlesnitch/README.md).
+Keep it to formulae. Casks often run their own `sudo` installer, which an unattended run can't answer.
 
 ### Dock layout
 
-Export your current dock and replace the config file:
+The plist is XML, with `__HOME__` where the user's home folder goes (`setup-user.sh` fills it in). To change it, export a Dock and convert it:
 
 ```bash
 defaults export com.apple.dock ~/Desktop/com.apple.dock.plist
-cp ~/Desktop/com.apple.dock.plist configfiles/com.apple.dock.plist
+plutil -convert xml1 ~/Desktop/com.apple.dock.plist
 ```
+
+Then remove the `book`, `file-mod-date` and `parent-mod-date` keys and `recent-apps` (they hold the original user's paths), replace `/Users/<you>` with `__HOME__`, and copy it to `configfiles/com.apple.dock.plist`.
 
 ---
 
@@ -179,9 +156,8 @@ macOS-quick-build/
 ├── lib/
 │   └── common.sh                   # Shared utilities (logging, error tracking)
 ├── configfiles/
-│   ├── Brewfile                    # Package definitions
-│   ├── littlesnitch/               # Little Snitch deployment config + MDM profile
-│   └── com.apple.dock.plist        # Dock layout
+│   ├── Brewfile                    # Command line tools
+│   └── com.apple.dock.plist        # Dock layout (XML template)
 ├── nopkg_installer/                # SimpleMDM nopkg/Munki flow
 │   ├── enrollment.sh               # Single source for MDM enrollment logic
 │   ├── build-pkginfo.sh            # Generates pkginfo from enrollment.sh
@@ -205,10 +181,8 @@ Run with `sudo ./macOSMachineSetup.sh`, not as `sudo -i` or in a root shell wher
 **Xcode CLT install hangs or fails**
 On a fresh Mac, `softwareupdate` sometimes needs a moment after first boot. Re-run the script. In an MDM context, the script will exit cleanly with an error rather than hanging on a GUI dialog.
 
-**Homebrew cask installs prompt for a password**
-Ensure you're running `sudo ./macOSMachineSetup.sh` — the orchestrator grants the console user temporary passwordless sudo for the duration of the user phase, then revokes it. This is required because cask pkg/script installers (Adobe Creative Cloud, Little Snitch, TeamViewer, ...) shell out to their own `sudo <staged installer>` call rather than going through `brew` itself, so a narrower grant scoped to just the `brew` binary doesn't cover them.
-
-Note this only silences the macOS admin-password prompt for installation. It does not — and cannot — supply an Adobe ID login; Creative Cloud's own sign-in screen on first launch is a separate, unattended-unfriendly step that Adobe only supports automating through its Admin Console enterprise packages, not via Homebrew.
+**A cask you added prompts for a password**
+The user phase has no sudo. Install that app with your MDM instead, or run the cask by hand.
 
 **A step failed — how do I see the full output?**
 Every `print_status`/`track_failure` call (in every script that sources `lib/common.sh`) is appended to `/var/log/macos_quick_build.log`, timestamped, so failures survive after the terminal output scrolls away. For MDM runs, also check `/var/log/macos_enrollment.log`.
@@ -222,7 +196,7 @@ Check `/var/log/macos_enrollment.log`. To re-run: `sudo rm /usr/local/simplemdm/
 
 This script modifies system-level settings including SSH remote login, sudo authentication (Touch ID), and system hostname. Review all scripts before running on production systems.
 
-During Phase 2 (user setup), the console user is granted full passwordless `sudo` (`NOPASSWD: ALL`) via a temporary `/etc/sudoers.d/` entry, needed so cask installers can silently self-elevate. This grant exists only for the duration of the user-setup phase and is removed right after, including when that phase reports failures — but it does mean any process running as the console user during that window could also use sudo without a prompt, and the grant would be left in place if the machine crashes or loses power mid-run (check `/etc/sudoers.d/` for a leftover `brew_temp_*` file and remove it manually if so). Acceptable for a freshly imaged/unattended machine; be aware of it if you run this on a machine already in active use.
+The MDM flow runs as root but downloads no code: the scripts are embedded in the pkginfo (nopkg) or the pkg. The one-liner in Manual Installation does download `main`, so only use it where you trust the current state of the repo. Earlier versions granted the console user temporary `NOPASSWD: ALL` sudo for cask installs; that is gone. If an old run was interrupted, check `/etc/sudoers.d/` for a leftover `brew_temp_*` file and remove it.
 
 ---
 
